@@ -1,0 +1,484 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>STEAL A EGG</title>
+
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;
+ font-family:Arial,sans-serif;
+ color:white;
+ background:linear-gradient(135deg,#100d35,#34206c,#101b42);
+ text-align:center;
+}
+header{
+ padding:20px;
+ background:linear-gradient(90deg,#ff8a00,#ff3d81,#823cff);
+ box-shadow:0 5px 25px #ff3d81;
+}
+h1{margin:0;font-size:32px;text-shadow:2px 3px #53236e}
+.stats{
+ display:flex;justify-content:center;gap:10px;
+ padding:12px;flex-wrap:wrap;
+}
+.stat{
+ background:#25265b;border:2px solid #817cff;
+ padding:12px 20px;border-radius:15px;
+}
+.area{
+ margin:10px auto;width:94%;max-width:900px;
+ height:280px;border:4px solid #fff;
+ border-radius:20px;position:relative;
+ overflow:hidden;transition:background 1s;
+ background:linear-gradient(#51cfff,#b7edff);
+}
+#world{
+ position:absolute;inset:0;
+ transition:1s;
+}
+#world:after{
+ content:"";position:absolute;bottom:0;
+ height:55px;width:100%;background:#47b94e;
+}
+#player{
+ position:absolute;bottom:48px;left:45%;
+ font-size:50px;z-index:3;
+ animation:bob 1s infinite alternate;
+}
+@keyframes bob{
+ to{transform:translateY(-7px)}
+}
+.cloud{
+ position:absolute;top:30px;font-size:35px;
+ animation:cloud 12s linear infinite;
+}
+@keyframes cloud{
+ from{left:100%}to{left:-100px}
+}
+.egg{
+ position:absolute;top:95px;left:40%;
+ font-size:55px;cursor:pointer;
+ animation:float 1.5s infinite alternate;
+ z-index:4;
+}
+@keyframes float{
+ to{transform:translateY(-15px) rotate(10deg)}
+}
+.panel{
+ background:#242253;
+ border:2px solid #7777ff;
+ border-radius:18px;
+ margin:15px auto;padding:16px;
+ width:94%;max-width:900px;
+}
+button{
+ background:linear-gradient(135deg,#ffb52e,#ff398b);
+ border:0;border-radius:12px;
+ padding:12px 17px;color:white;
+ font-weight:bold;margin:5px;
+ cursor:pointer;
+}
+button:active{transform:scale(.93)}
+.grid{
+ display:grid;
+ grid-template-columns:repeat(5,1fr);
+ gap:9px;margin-top:15px;
+}
+.item{
+ padding:12px 3px;
+ background:#39346f;border:2px solid #7777ff;
+ border-radius:12px;
+}
+.item span{font-size:32px}
+.item small{display:block;margin-top:5px}
+.areas{
+ display:grid;grid-template-columns:repeat(5,1fr);
+ gap:7px;margin-top:12px;
+}
+.areaBtn{background:#45427e}
+#pets{font-size:25px;line-height:2}
+#notice{color:#ffe65b;min-height:25px}
+@media(max-width:500px){
+ .area{height:250px}
+ .grid{grid-template-columns:repeat(2,1fr)}
+ .areas{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+
+<body>
+
+<header>
+<h1>🥚 STEAL A EGG</h1>
+<p>COLLECT • HATCH • EXPLORE</p>
+</header>
+
+<div class="stats">
+ <div class="stat">💰 Uang: <b id="money">500</b></div>
+ <div class="stat">🥚 Telur: <b id="count">0</b></div>
+ <div class="stat">🐾 Pet: <b id="petCount">0</b></div>
+</div>
+
+<div class="area">
+ <div id="world">
+  <div class="cloud">☁️</div>
+  <div id="player">🧑</div>
+  <div class="egg" id="worldEgg">🥚</div>
+ </div>
+</div>
+
+<div id="notice">Selamat datang! Cari dan kumpulkan telur!</div>
+
+<div class="panel">
+<h2>🗺️ PILIH AREA</h2>
+<div class="areas" id="areaButtons"></div>
+<p id="areaName">Area: Green Land</p>
+</div>
+
+<div class="panel">
+<h2>🥚 EGG SHOP</h2>
+<p>Beli telur untuk mendapatkan pet!</p>
+<div class="grid" id="eggShop"></div>
+</div>
+
+<div class="panel">
+<h2>🎒 KOLEKSI TELUR</h2>
+<div id="inventory">Belum ada telur</div>
+</div>
+
+<div class="panel">
+<h2>🐾 KOLEKSI PET</h2>
+<div id="pets">Belum ada pet</div>
+</div>
+
+<div class="panel">
+<h2>🎮 KONTROL</h2>
+<button onclick="move(-1)">⬅️ KIRI</button>
+<button onclick="move(1)">KANAN ➡️</button>
+<button onclick="collectEgg()">🥚 AMBIL TELUR</button>
+<button onclick="hatch()">🐣 TETASKAN TELUR</button>
+</div>
+
+<script>
+const eggs=[
+ {name:"Basic Egg",icon:"🥚",price:50,pet:"🐶"},
+ {name:"Grass Egg",icon:"🥚",price:100,pet:"🐱"},
+ {name:"Forest Egg",icon:"🌿",price:200,pet:"🦊"},
+ {name:"Ocean Egg",icon:"🌊",price:350,pet:"🐬"},
+ {name:"Fire Egg",icon:"🔥",price:500,pet:"🐉"},
+ {name:"Ice Egg",icon:"❄️",price:800,pet:"🐧"},
+ {name:"Gold Egg",icon:"🌟",price:1200,pet:"🦁"},
+ {name:"Crystal Egg",icon:"💎",price:1800,pet:"🦄"},
+ {name:"Galaxy Egg",icon:"🌌",price:3000,pet:"👾"},
+ {name:"Legend Egg",icon:"👑",price:5000,pet:"🐲"}
+];
+
+const areas=[
+ {name:"Green Land",color:"linear-gradient(#51cfff,#b7edff)",price:0,icon:"🌳"},
+ {name:"Desert World",color:"linear-gradient(#ffb347,#ffdf85)",price:500,icon:"🏜️"},
+ {name:"Ice Kingdom",color:"linear-gradient(#8ce8ff,#d5faff)",price:1000,icon:"❄️"},
+ {name:"Lava Land",color:"linear-gradient(#ff552b,#7c1717)",price:2000,icon:"🌋"},
+ {name:"Galaxy World",color:"linear-gradient(#29125f,#a33cff)",price:4000,icon:"🌌"}
+];
+
+let money=Number(localStorage.getItem("eggMoney"))||500;
+let inventory=JSON.parse(localStorage.getItem("eggInventory")||"[]");
+let pets=JSON.parse(localStorage.getItem("eggPets")||"[]");
+let unlocked=JSON.parse(localStorage.getItem("eggAreas")||"[0]");
+let currentArea=0;
+let playerPos=45;
+let eggAvailable=true;
+
+function save(){
+ localStorage.setItem("eggMoney",money);
+ localStorage.setItem("eggInventory",JSON.stringify(inventory));
+ localStorage.setItem("eggPets",JSON.stringify(pets));
+ localStorage.setItem("eggAreas",JSON.stringify(unlocked));
+}
+
+function update(){
+ document.getElementById("money").textContent=money;
+ document.getElementById("count").textContent=inventory.length;
+ document.getElementById("petCount").textContent=pets.length;
+
+ document.getElementById("inventory").innerHTML=
+ inventory.length?inventory.map((e,i)=>
+ `<button onclick="hatchOne(${i})">${e.icon} ${e.name}</button>`
+ ).join(""):"Belum ada telur";
+
+ document.getElementById("pets").textContent=
+ pets.length?pets.join(" "):"Belum ada pet";
+
+ save();
+}
+
+function message(text){
+ document.getElementById("notice").textContent=text;
+}
+
+function buildShop(){
+ document.getElementById("eggShop").innerHTML=eggs.map((e,i)=>
+ `<div class="item">
+ <span>${e.icon}</span>
+ <small>${e.name}</small>
+ <small>💰 ${e.price}</small>
+ <button onclick="buyEgg(${i})">BELI</button>
+ </div>`
+ ).join("");
+}
+
+function buildAreas(){
+ document.getElementById("areaButtons").innerHTML=
+ areas.map((a,i)=>
+ `<button class="areaBtn" onclick="changeArea(${i})">
+ ${a.icon}<br>${a.name}<br>
+ ${unlocked.includes(i)?"OPEN":"💰 "+a.price}
+ </button>`
+ ).join("");
+}
+
+function buyEgg(i){
+ let e=eggs[i];
+ if(money<e.price){
+  message("❌ Uang tidak cukup!");
+  return;
+ }
+ money-=e.price;
+ inventory.push({name:e.name,icon:e.icon,pet:e.pet});
+ message("🥚 Berhasil membeli "+e.name+"!");
+ update();
+}
+
+function hatchOne(i){
+ let e=inventory[i];
+ if(!e)return;
+
+ pets.push(e.pet);
+ inventory.splice(i,1);
+ message("✨ Telur menetas! Kamu mendapat "+e.pet);
+ update();
+}
+
+function hatch(){
+ if(!inventory.length){
+  message("Belum punya telur!");
+  return;
+ }
+ hatchOne(0);
+}
+
+function changeArea(i){
+ let a=areas[i];
+
+ if(!unlocked.includes(i)){
+  if(money<a.price){
+   message("Uang belum cukup membuka area!");
+   return;
+  }
+  money-=a.price;
+  unlocked.push(i);
+ }
+
+ currentArea=i;
+ document.getElementById("world").style.background=a.color;
+ document.getElementById("areaName").textContent="Area: "+a.name;
+ message("🌍 Selamat datang di "+a.name+"!");
+ buildAreas();
+ update();
+}
+
+function move(dir){
+ playerPos=Math.max(5,Math.min(85,playerPos+dir*8));
+ document.getElementById("player").style.left=playerPos+"%";
+}
+
+function collectEgg(){
+ if(!eggAvailable){
+  message("Telur sedang muncul kembali...");
+  return;
+ }
+
+ eggAvailable=false;
+ money+=25;
+ message("🥚 Kamu menemukan telur liar! +25 uang");
+
+ let egg=document.getElementById("worldEgg");
+ egg.style.display="none";
+
+ update();
+
+ setTimeout(()=>{
+  egg.style.display="block";
+  eggAvailable=true;
+ },2500);
+}
+
+document.addEventListener("keydown",e=>{
+ if(e.key==="ArrowLeft")move(-1);
+ if(e.key==="ArrowRight")move(1);
+});
+
+buildShop();
+buildAreas();
+update();
+</script>
+
+<style>
+#adminLogin,#adminDashboard{
+ background:linear-gradient(135deg,#10102f,#36206d);
+ border:2px solid #a855f7;
+ border-radius:20px;
+ padding:20px;
+ margin:15px auto;
+ max-width:600px;
+ box-shadow:0 0 25px #9333ea;
+}
+.adminGrid{
+ display:grid;
+ grid-template-columns:repeat(2,1fr);
+ gap:10px;
+}
+.adminBtn{
+ background:linear-gradient(135deg,#7629ff,#e333b7);
+ padding:14px;
+ border-radius:12px;
+ color:white;
+ font-weight:bold;
+}
+#adminDashboard{display:none}
+#adminPassword{
+ padding:13px;
+ border-radius:10px;
+ width:90%;
+ border:2px solid #a855f7;
+ margin:10px;
+}
+</style>
+
+<button onclick="showAdminLogin()">👑 OPEN ADMIN</button>
+
+<div id="adminLogin" style="display:none">
+<h2>🔐 ADMIN LOGIN</h2>
+<p>Masukkan password administrator</p>
+<input id="adminPassword"
+type="password" placeholder="Password">
+<br>
+<button onclick="loginAdmin()">LOGIN</button>
+<p id="loginMessage"></p>
+</div>
+
+<div id="adminDashboard">
+<h2>👑 ADMIN DASHBOARD</h2>
+<p>STEAL A EGG CONTROL CENTER</p>
+
+<div class="adminGrid">
+<button class="adminBtn" onclick="godMode()">
+⚡ GOD MODE
+</button>
+
+<button class="adminBtn" onclick="unlimitedMoney()">
+💰 UNLIMITED MONEY
+</button>
+
+<button class="adminBtn" onclick="giveEggs()">
+🥚 SPAWN 10 EGGS
+</button>
+
+<button class="adminBtn" onclick="givePets()">
+🐉 SPAWN ALL PETS
+</button>
+
+<button class="adminBtn" onclick="unlockAll()">
+🗺️ UNLOCK ALL AREAS
+</button>
+
+<button class="adminBtn" onclick="money+=50000;update()">
+🎁 +50K MONEY
+</button>
+
+<button class="adminBtn" onclick="resetGame()">
+🔄 RESET GAME
+</button>
+
+<button class="adminBtn" onclick="closeAdminV2()">
+❌ CLOSE ADMIN
+</button>
+</div>
+
+<p id="adminStatus">ADMIN READY</p>
+</div>
+
+<script>
+const ADMIN_PASSWORD="DINO2026";
+
+function showAdminLogin(){
+ document.getElementById("adminLogin").style.display="block";
+}
+
+function loginAdmin(){
+ const pass=document.getElementById("adminPassword").value;
+
+ if(pass===ADMIN_PASSWORD){
+  document.getElementById("adminLogin").style.display="none";
+  document.getElementById("adminDashboard").style.display="block";
+  document.getElementById("adminStatus").textContent="👑 ADMIN ACTIVE";
+ }else{
+  document.getElementById("loginMessage").textContent="❌ Password salah!";
+ }
+}
+
+function adminStatus(text){
+ document.getElementById("adminStatus").textContent=text;
+ update();
+}
+
+function godMode(){
+ money=999999999;
+ unlocked=[0,1,2,3,4];
+ buildAreas();
+ adminStatus("⚡ GOD MODE AKTIF!");
+}
+
+function unlimitedMoney(){
+ money=999999999;
+ adminStatus("💰 UANG UNLIMITED!");
+}
+
+function giveEggs(){
+ eggs.forEach(e=>{
+  inventory.push({
+   name:e.name,icon:e.icon,pet:e.pet
+  });
+ });
+ adminStatus("🥚 SEMUA TELUR DIBERIKAN!");
+}
+
+function givePets(){
+ eggs.forEach(e=>pets.push(e.pet));
+ adminStatus("🐉 SEMUA PET DIBERIKAN!");
+}
+
+function unlockAll(){
+ unlocked=[0,1,2,3,4];
+ buildAreas();
+ adminStatus("🗺️ SEMUA AREA TERBUKA!");
+}
+
+function resetGame(){
+ if(confirm("Yakin ingin reset seluruh progress?")){
+  localStorage.clear();
+  location.reload();
+ }
+}
+
+function closeAdminV2(){
+ document.getElementById("adminDashboard").style.display="none";
+}
+</script>
+
+</body>
+</html>
